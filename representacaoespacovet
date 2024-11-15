@@ -1,0 +1,295 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <time.h>
+
+#define WIDTH_GRADIENT 256  // Largura da imagem do gradiente
+#define HEIGHT_GRADIENT 256 // Altura da imagem do gradiente
+
+#define WIDTH_SAD 100  // Largura da imagem da carinha feliz
+#define HEIGHT_SAD 100 // Altura da imagem da carinha feliz
+
+#define WIDTH_SUN_GRASS 64  // Largura da imagem do sol e grama
+#define HEIGHT_SUN_GRASS 64 // Altura da imagem do sol e grama
+
+// Definições de cores
+#define COLOR_WHITE 255
+#define COLOR_BLACK 0    // Cor do sol
+#define COLOR_LIGHT 150  // Cor da grama mais clara
+#define COLOR_DARK 100   // Cor menos escuro para detalhes
+#define COLOR_FLOWER 200 // Cor da flor (vermelho)
+
+// Funcao para gerar uma imagem em tons de cinza (gradiente) - bem complexa
+void generate_gradient(unsigned char image[HEIGHT_GRADIENT][WIDTH_GRADIENT])
+{
+    for (int y = 0; y < HEIGHT_GRADIENT; y++)
+    {
+        for (int x = 0; x < WIDTH_GRADIENT; x++)
+        {
+            image[y][x] = (unsigned char)(x + y);
+        }
+    }
+}
+
+// Função para gerar uma carinha triste
+void generate_sad_face(unsigned char image[HEIGHT_SAD][WIDTH_SAD])
+{
+    // Preencher a imagem com fundo branco
+    for (int y = 0; y < HEIGHT_SAD; y++)
+    {
+        for (int x = 0; x < WIDTH_SAD; x++)
+        {
+            image[y][x] = 255; // Branco
+        }
+    }
+    // Olho esquerdo
+    for (int y = 40; y < 45; y++)
+    {
+        for (int x = 40; x < 45; x++)
+        {
+            if ((x - 42) * (x - 42) + (y - 42) * (y - 42) <= 2 * 2)
+            {
+                image[y][x] = 0; // Preto
+            }
+        }
+    }
+    // Olho direito
+    for (int y = 40; y < 45; y++)
+    {
+        for (int x = 55; x < 60; x++)
+        {
+            if ((x - 57) * (x - 57) + (y - 42) * (y - 42) <= 2 * 2)
+            {
+                image[y][x] = 0; // Preto
+            }
+        }
+    }
+    // Desenhar a boca (curva)
+    for (int x = 35; x < 65; x++)
+    {
+        int y = 60 + (x - 50) * (x - 50) / 40; // Curva do sorriso 2 grau
+        if (y < HEIGHT_SAD)
+        {
+            image[y][x] = 0; // Preto
+        }
+    }
+}
+
+// Funcao para desenhar o sol e a grama
+void draw_sun_and_grass(unsigned char image[HEIGHT_SUN_GRASS][WIDTH_SUN_GRASS], int sun_center_x)
+{
+    // Preencher a imagem com fundo branco
+    for (int y = 0; y < HEIGHT_SUN_GRASS; y++)
+    {
+        for (int x = 0; x < WIDTH_SUN_GRASS; x++)
+        {
+            image[y][x] = COLOR_WHITE; // Fundo branco
+        }
+    }
+
+    // Definir o centro e o raio do sol
+    int sun_center_y = 16;
+    int sun_radius = 10;
+
+    // Desenhar o círculo do sol
+    for (int y = sun_center_y - sun_radius; y <= sun_center_y + sun_radius; y++)
+    {
+        for (int x = sun_center_x - sun_radius; x <= sun_center_x + sun_radius; x++)
+        {
+            if ((x - sun_center_x) * (x - sun_center_x) + (y - sun_center_y) * (y - sun_center_y) <= sun_radius * sun_radius)
+            {
+                if (y >= 0 && y < HEIGHT_SUN_GRASS && x >= 0 && x < WIDTH_SUN_GRASS)
+                {
+                    image[y][x] = COLOR_BLACK; // Círculo do sol
+                }
+            }
+        }
+    }
+
+    // Desenhar os raios do sol
+    for (int i = 0; i < 12; i++)
+    {
+        float angle = i * (M_PI / 6); // Dividir em 12 raios
+        int x_start = sun_center_x + sun_radius * cos(angle);
+        int y_start = sun_center_y + sun_radius * sin(angle);
+        int x_end = sun_center_x + (sun_radius + 5) * cos(angle);
+        int y_end = sun_center_y + (sun_radius + 5) * sin(angle);
+
+        // Desenhar os raios do sol
+        for (int j = 0; j <= 5; j++)
+        {
+            int x_ray = x_start + j * (x_end - x_start) / 5;
+            int y_ray = y_start + j * (y_end - y_start) / 5;
+            if (x_ray >= 0 && x_ray < WIDTH_SUN_GRASS && y_ray >= 0 && y_ray < HEIGHT_SUN_GRASS)
+            {
+                image[y_ray][x_ray] = COLOR_BLACK; // Raios do sol
+            }
+        }
+    }
+
+    // Desenhar a grama com detalhes
+    for (int y = 40; y < HEIGHT_SUN_GRASS; y++)
+    {
+        for (int x = 0; x < WIDTH_SUN_GRASS; x++)
+        {
+            // Suavizar a cor da grama
+            if (y < 50)
+            {
+                int transition_factor = (y - 40) * 5;                                             // Aumenta gradualmente até 50
+                image[y][x] = COLOR_WHITE + transition_factor * (COLOR_LIGHT - COLOR_WHITE) / 50; // Grama mais clara
+            }
+            else
+            {
+                image[y][x] = COLOR_LIGHT; // Grama
+            }
+
+            // Adicionar detalhes (pequenas plantas ou flores)
+            if (rand() % 100 < 5)
+            {
+                image[y][x] = COLOR_DARK; // Detalhe escuro da grama
+            }
+            if (rand() % 100 < 2)
+            {
+                image[y][x] = COLOR_FLOWER; // Detalhe da flor
+            }
+        }
+    }
+}
+
+// função para criar imagem negativa
+void create_negative_image(unsigned char image[HEIGHT_SUN_GRASS][WIDTH_SUN_GRASS], unsigned char negative_image[HEIGHT_SUN_GRASS][WIDTH_SUN_GRASS])
+{
+    for (int y = 0; y < HEIGHT_SUN_GRASS; y++)
+    {
+        for (int x = 0; x < WIDTH_SUN_GRASS; x++)
+        {
+            negative_image[y][x] = 255 - image[y][x]; // Inverte a cor
+        }
+    }
+}
+//função que clarea a imagem em 35%
+void brighten_image(unsigned char image[HEIGHT_SUN_GRASS][WIDTH_SUN_GRASS]) 
+{
+    int brightness_increase = 255 * 0.35; // Aumento de 35% do brilho
+
+    for (int y = 0; y < HEIGHT_SUN_GRASS; y++)
+    {
+        for (int x = 0; x < WIDTH_SUN_GRASS; x++)
+        {
+            // Aumenta a luminosidade do pixel
+            int brightened_value = image[y][x] + brightness_increase;
+
+            // Verifica se o valor ultrapassa 255
+            if (brightened_value > 255) 
+            {
+                image[y][x] = 255; // Se exceder, define o valor como 255
+            } 
+            else 
+            {
+                image[y][x] = brightened_value; // Caso contrário, usa o valor aumentado
+            }
+        }
+    }
+}
+
+// Funcao para salvar a imagem em formato PGM
+void save_image(const char *filename, unsigned char *image, int width, int height)
+{
+    FILE *file = fopen(filename, "wb");
+    if (file == NULL)
+    {
+        fprintf(stderr, "Erro ao abrir o arquivo para escrita\n");
+        exit(1);
+    }
+
+    // Escrevendo o cabeçalho do PGM
+    fprintf(file, "P5\n");
+    fprintf(file, "%d %d\n", width, height);
+    fprintf(file, "255\n");
+
+    // Escrevendo os dados da imagem
+    fwrite(image, sizeof(unsigned char), width * height, file);
+    fclose(file);
+}
+
+int main()
+{
+    int choice;
+
+    do
+    {
+        printf("\n-----------------------------------\n");
+        printf("PROJETO DE ALGEBRA LIENAR\n");
+        printf("BEM VINDO!\n");
+        printf("Escolha uma opcao:\n");
+        printf("1. Gerar imagem em gradiente\n");
+        printf("2. Gerar carinha triste\n");
+        printf("3. Gerar sol e grama\n");
+        printf("4. Gerar sol a esquerda (posicionamento) e grama\n");
+        printf("5. Gerar sol a esquerda e negativo\n");
+        printf("6. Gerar sol a esquerda clareado em 35%\n ");
+        printf("0. Sair\n");
+        printf("Opcao: \n");
+        scanf("%d", &choice);
+
+        switch (choice)
+        {
+        case 1:
+        {
+            unsigned char image[HEIGHT_GRADIENT][WIDTH_GRADIENT];
+            generate_gradient(image);
+            save_image("gradiente_imagem.pgm", (unsigned char *)image, WIDTH_GRADIENT, HEIGHT_GRADIENT);
+            printf("Imagem gerada e salva como gradiente_imagem.pgm\n");
+            break;
+        }
+        case 2:
+        {
+            unsigned char image[HEIGHT_SAD][WIDTH_SAD];
+            generate_sad_face(image);
+            save_image("carinha_triste.pgm", (unsigned char *)image, WIDTH_SAD, HEIGHT_SAD);
+            printf("Imagem da carinha triste gerada e salva como carinha_triste.pgm\n");
+            break;
+        }
+        case 3:
+        {
+            unsigned char image[HEIGHT_SUN_GRASS][WIDTH_SUN_GRASS];
+            draw_sun_and_grass(image, 32);
+            save_image("sol_com_grama.pgm", (unsigned char *)image, WIDTH_SUN_GRASS, HEIGHT_SUN_GRASS);
+            printf("Imagem do sol e da grama gerada e salva como sol_com_grama.pgm\n");
+            break;
+        }
+        case 4:
+        {
+            unsigned char image[HEIGHT_SUN_GRASS][WIDTH_SUN_GRASS];
+            draw_sun_and_grass(image, 16); // Chamar a nova funcao
+            save_image("sol_com_grama_esquerda.pgm", (unsigned char *)image, WIDTH_SUN_GRASS, HEIGHT_SUN_GRASS);
+            printf("Imagem do sol a esquerda e da grama gerada e salva como sol_com_grama_esquerda.pgm\n");
+            break;
+        }
+        case 5:
+        {
+            // ela joga um "fitro"
+            unsigned char image[HEIGHT_SUN_GRASS][WIDTH_SUN_GRASS];
+            draw_sun_and_grass(image, 16);
+            unsigned char negative_image[HEIGHT_SUN_GRASS][WIDTH_SUN_GRASS];
+            create_negative_image(image, negative_image);
+            save_image("sol_com_grama_negativo.pgm", negative_image[0], WIDTH_SUN_GRASS, HEIGHT_SUN_GRASS);
+        }
+        case 6:
+        {
+            unsigned char image[HEIGHT_SUN_GRASS][WIDTH_SUN_GRASS];
+            draw_sun_and_grass(image, 16);
+            brighten_image(image);
+            save_image("sol_com_grama_clareado.pgm", image[0], WIDTH_SUN_GRASS, HEIGHT_SUN_GRASS);
+        }
+        case 0:
+            printf("Saindo...\n");
+            break;
+        default:
+            printf("Opcao invalida.\n");
+            break;
+        }
+    } while (choice != 0);
+
+    return 0;
+}
